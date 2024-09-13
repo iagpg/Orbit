@@ -1,0 +1,49 @@
+apos criarmos o projeto com o comando npm:
+> create vite@lastest
+usamos o proximo comando para instalarmos as dependencias (use o prompt e nao PowerShell)
+> npm i
+
+
+em settinggs.json (f1)
+adicionamos isso
+"emmet.includeLanguages": {
+        "javascript": "javascriptreact",
+        "mdx": "javascriptreact"
+    },
+    "emmet.syntaxProfiles": {
+        "javascript":"jsx",
+        "mdx":"jsx"
+    },
+
+disabilitar o nullAssertion no biome
+"linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+     > "style": {
+     > "noNonNullAssertion": "off"
+      }
+    }
+  },
+
+tailwind installation: usando a guia de framework vite
+npm install -D tailwindcss postcss autoprefixer
+
+instalando tailwindcss, postcss, e autoprefixer,
+
+npx tailwindcss init -p
+instalar arquivo de config do tailwind
+
+adicionar no index.css
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+instalar icones
+npm i lucide-react
+
+instalar componentes interagiveis e totalmente customizados, redix
+npm i @radix-ui/react-dialog
+    

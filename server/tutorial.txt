@@ -1,0 +1,257 @@
+npm init -y
+
+cria o package.json
+
+
+instala a dependencia typescript em modo desenvolvimento
+npm i typescript -D
+
+*fazemos em modo de desenvolvimento pq em produçao essa dependencia nao é util pois o código já estara em javascript
+
+
+npx é o comando para executar as dependencias que já foram instaladas, no caso o typescript
+em node_modules -> bin -> tsc
+
+npx tsc --init para criar o tsconfig.json
+https://github.com/tsconfig/bases?tab=readme-ov-file
+
+acessando @tsconfig/node[versão do seu node instalado] copie o arquivo da sua versão do node, no caso o node do projeto é 18
+
+node por padrão nao entende typescript
+
+traz a integração do typescript para o node, para conseguir acessar as variaveis e bibliotecas do node
+npm i @types/node tsx -D
+
+tsx converte o código de typescript para javascript e executar
+
+em package.json façamos essa alteração:
+"scripts": {
+    "dev": "tsx watch src/http/server.ts"
+  },
+rodamos npm run dev para executar aa aplicação, watch permite que continue a rodar, e recompila ao fazer qualquer alteração.
+
+
+outra dependencia o fastify, o framework. Temos outros como: [encore, express, bun]
+npm i fastify
+
+
+instalar biblioteca para formatar codigo de maneira rapida ao acionar ctrl+s
+
+npm i --save-exact @biomejs/biome
+
+para definir que o visual code utilize o biome como formatador padrao execute
+
+>preferences: Open Workspace Settings(json)
+um novo arquivo surgira .vscode -> settings.json
+
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "biomejs.biome"
+}
+
+instale o plugin do biome
+
+instale docker, ou no pior cenário use o 
+neon tech, isso permite hospedar um backend com o banco de dados postgree online
+
+
+ao instalar o docker, crie um arquivo no root chamado
+docker-compose.yml
+
+name: pocket-js-server
+
+services:
+  pg:
+    image: bitnami/postgresql:13.16.0
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=docker
+      - POSTGRES_DB=inorbit
+
+apos isso rode o comando:
+ docker compose up -d
+
+ para ver a lista de containers
+ docker ps -a
+ > 46eb41800090
+ docker logs 46eb41800090
+
+
+ realizar a comunicao com o nosso banco de dados
+ instale o drizzle um object relational mapping, no laravel, temos o eloquent por exemeplo, ajuda a criar querys
+ npm i drizzle-orm 
+ 
+ outra..
+ npm i drizzle-kit -D
+ para isso precisamos criar um arquivo no root drizzle.config.ts
+
+ -- drizzle.config.ts
+import { defineConfig } from 'drizzle-kit'
+import { env } from './src/env'
+
+export default defineConfig({
+  schema: '.src/db/schema.ts',
+  out: './.migrations',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: env.DATABASE_URL,
+  },
+})
+
+
+ -- em package.json em dev, adicionados  --env-file .env dps de tsx e antes de  "dev": "tsx --env-file .env watch src/http/server.ts"
+
+
+ adicionaos outra biblioteca zod para validação
+ npm i zod
+ dps em src, crie env.ts
+
+ import z from 'zod'
+
+const envSchema = z.object({
+  DATABASE_URL: z.string().url(),
+})
+
+export const env = envSchema.parse(process.env)
+
+basicamente valida se a database_url é do tipo string e é url, caso contrário vai dar um throw
+
+agora criamos um em src/db/schema.ts para criarmos o modelo de tabela
+
+import { pgTable, text, integer, timestamp } from 'drizzle-orm/pg-core'
+
+export const goals = pgTable('goals', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  desiredWeeklyFrequency: integer('desired_weekly_frequency').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+entao criamos uma tabela goals com esses campos ai.
+agora rodamos:
+ npx drizzle-kit generate
+
+ para criar a tabela via migration
+ para executarmos a migration:
+
+ npx drizzle-kit migrate
+ porem agora, temos que connectar nosso banco de dados, o driver do postgrees
+  npm i postegres
+  rode o comando outra vez do migrate
+  para visualizar nosso banco de dados use o npx drizzle-kit studio
+para abrir a interface
+
+se quiser, utilize outra biblioteca de algoritimo de ids
+
+npm i @paralleldrive/cuid2
+
+atualizamos nossas chaves primárias com esse algoritimo
+id: text('id')
+.primaryKey()
+.$defaultFn(() => createId()),
+
+agora a connectar com o banco de dados
+crie um arquivo ts em src/db/index.ts
+
+aqui vai algumas configurações do postgree
+
+import { drizzle } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
+import * as schema from './schema' // pegar todas as importações
+import { env } from '../env'
+
+export const client = postgres(env.DATABASE_URL)
+export const db = drizzle(client, { schema, logger: true }) // logger para visualizar as querys que fizermos no banco de dados
+
+agora criamos o seed, para criar dados ficitios ao inicializar
+
+import { db } from '.'
+import { goals, goalCompletions } from './schema'
+
+async function seed() {
+  await db.delete(goalCompletions)
+  await db.delete(goals)
+
+  await db.insert(goals).values([
+    { title: 'Acordar cedo', desiredWeeklyFrequency: 5 },
+    { title: 'Me exercitar', desiredWeeklyFrequency: 3 },
+    { title: 'Meditar', desiredWeeklyFrequency: 1 },
+  ])
+}
+
+seed()
+
+agora, criamos uma configuralção em pacakge.json
+"seed": "tsx --env-file .env src/db/seed.ts"
+
+se ocorrer erro em --env-file, entao a versão do seu node nao suporta
+
+se o caso for erro no watch ao rodar dev é por conta do comando, veja a lista usando o comando 
+node -h
+e veja se watch é --watch ou só watch/ veja se contem --env-file
+
+--para manipular Dates de forma pratica usamos outra biblioteca
+npm i dayjs
+
+const startOfWeek = dayjs().startOf('week');
+vai pegar a semana atual, começando começando com domingo
+
+createdAt: startOfWeek.toDate()
+
+sem usaro z, teria que criar uma interface e exportar em src/db/features/reate-goals.ts
+
+importar em src/http/server.ts
+
+import fastify from 'fastify'
+import { createGoal } from '../features/create-goal'
+import type {CreateGoalRequest} from '../features/create-goal';
+
+const app = fastify()
+
+app.post('/goals', async request => {
+
+  const body = request.body as CreateGoalRequest
+
+  await createGoal({
+    title: body.title,
+    desiredWeeklyFrequency: body.desiredWeeklyFrequency,
+  })
+})
+
+app
+  .listen({
+    port: 3333,
+  })
+  .then(() => {
+    console.log('server running')
+  })
+
+  porem usaremos o zod
+
+  agora instaremos o:
+  npm i fastify-type-provider-zod
+  que vai ajudar a gente retornar os throw mais legivel
+
+
+  outra biblioteca para configurar Cors
+  npm i @fastify/cors
+
+  Cross-Origin Resource Sharing: cors basicamente é um metodo de segurança
+  para evitar que o backend seja acessivel por qualquer front-end
+  sem configurar o cors, o front end fica impossibilidade de qualquer aplicação front end seja capaz de acessar o backend
+
+  apos configurar o cors em server.ts
+  vamos começar a criação do front end
+
+  na pasta do projeto, voltamos uma pasta cd .. < \projeto_pocket_js >
+  instalamos npm create vite@latest 
+  de o nome de web
+  use react
+  e typescript
+  acesse o projeto web, cd web
+  e abre o projeto com o comando code .
+  sigua as intruções no projeto front end
